@@ -36,8 +36,6 @@
             z-index: 100;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
             box-sizing: border-box;
         }
 
@@ -62,7 +60,7 @@
             justify-content: center;
         }
 
-        /* En-tête : Logo à gauche, Titre milieu-droite */
+        /* En-tête : Logo à gauche, Titre au milieu */
         .home-header {
             position: absolute;
             top: 0; left: 0;
@@ -79,6 +77,8 @@
             padding: 10px;
             border-radius: 12px;
             border: 2px dashed rgba(255,255,255,0.3);
+            position: absolute;
+            left: 40px;
         }
         .main-title {
             color: #ff3838; /* Titre en rouge */
@@ -87,8 +87,7 @@
             line-height: 1.5;
             text-transform: uppercase;
             text-shadow: 4px 4px 0px #000;
-            margin-left: auto;
-            margin-right: 10%; /* Décale vers le milieu-droite */
+            margin: 0 auto; /* Centre parfaitement le titre au milieu */
             text-align: center;
         }
 
@@ -151,12 +150,12 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
 
-        /* Bouton Discord arrondi */
-        .discord-round-btn {
-            margin-top: 50px;
+        /* Boutons d'actions ronds du bas (générique) */
+        .bottom-action-btn {
+            position: absolute;
+            bottom: 40px;
             width: 70px;
             height: 70px;
-            background-color: #5865F2;
             border-radius: 50%;
             display: flex;
             justify-content: center;
@@ -167,15 +166,34 @@
             border: none;
             text-decoration: none;
         }
-        .discord-round-btn:hover {
+        .bottom-action-btn:hover {
             transform: scale(1.1);
-            background-color: #4752c4;
         }
-        .discord-round-btn img {
+        .bottom-action-btn img {
             width: 42px;
             height: 42px;
             object-fit: contain;
+        }
+
+        /* Bouton Discord - En bas à gauche */
+        .discord-btn-left {
+            left: 40px;
+            background-color: #5865F2;
+        }
+        .discord-btn-left:hover {
+            background-color: #4752c4;
+        }
+        .discord-btn-left img {
             border-radius: 50%;
+        }
+
+        /* Bouton Jeux d'Emojis - En bas à droite */
+        .game-link-btn-right {
+            right: 40px;
+            background-color: #ffffff;
+        }
+        .game-link-btn-right:hover {
+            background-color: #f0f0f0;
         }
     </style>
 </head>
@@ -201,8 +219,12 @@
                 </div>
             </div>
 
-            <a href="#" class="discord-round-btn" onclick="return false;">
+            <a href="https://discord.gg/CP9hFvjDDC" target="_blank" class="bottom-action-btn discord-btn-left">
                 <img src="https://static.vecteezy.com/system/resources/previews/006/892/625/non_2x/discord-logo-icon-editorial-free-vector.jpg" alt="Discord">
+            </a>
+
+            <a href="https://html-emojigames.github.io/play" target="_blank" class="bottom-action-btn game-link-btn-right">
+                <img src="arrondi.png" alt="Play More Games">
             </a>
         </div>
     </div>
@@ -239,23 +261,23 @@
 
         // --- SYSTÈME DE PLUIE DE POMMES (ÉCRAN D'ACCUEIL) ---
         let rainApples = [];
-        const maxRainApples = 40; // Nombre de pommes simultanées à l'écran
+        const maxRainApples = 40;
 
         function initRain() {
             rainApples = [];
             for (let i = 0; i < maxRainApples; i++) {
                 rainApples.push({
                     x: Math.random() * window.innerWidth,
-                    y: Math.random() * window.innerHeight - window.innerHeight, // Commence hors-écran ou étalé au départ
+                    y: Math.random() * window.innerHeight - window.innerHeight,
                     speed: 2 + Math.random() * 3,
                     size: 24 + Math.random() * 16,
-                    emoji: Math.random() < 0.10 ? "🍏" : "🍎" // 10% Vertes, 90% Rouges
+                    emoji: Math.random() < 0.10 ? "🍏" : "🍎"
                 });
             }
         }
 
         function updateRain() {
-            if (gameActive) return; // Arrête l'animation si le jeu commence
+            if (gameActive) return;
             
             rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
             rainCtx.textAlign = "center";
@@ -264,12 +286,11 @@
                 let a = rainApples[i];
                 a.y += a.speed;
 
-                // Si la pomme dépasse le bas, on la remet tout en haut aléatoirement
                 if (a.y > rainCanvas.height + 40) {
                     a.y = -40;
                     a.x = Math.random() * rainCanvas.width;
                     a.speed = 2 + Math.random() * 3;
-                    a.emoji = Math.random() < 0.10 ? "🍏" : "🍎"; // Recalcule les probabilités à la réapparition
+                    a.emoji = Math.random() < 0.10 ? "🍏" : "🍎";
                 }
 
                 rainCtx.font = a.size + "px 'Nunito'";
@@ -278,11 +299,9 @@
             requestAnimationFrame(updateRain);
         }
 
-        // Initialisation immédiate des tailles et de la pluie
         resize();
         initRain();
         updateRain();
-
 
         // --- FONCTION DE LANCEMENT DU JEU ---
         function startGame() {
