@@ -30,7 +30,7 @@
         /* Pinned Money Badge during Gameplay */
         .pinned-money { background: #f1c40f; color: #2c3e50; font-weight: 700; font-size: 20px; padding: 10px 22px; border-radius: 50px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid #fff; }
 
-        /* INVENTORY SCREEN (50% Transparent) */
+        /* INVENTORY SCREEN */
         #inventory-screen { position: fixed; top: 5vh; left: 5vw; width: 90vw; height: 90vh; background: rgba(0, 0, 0, 0.5); z-index: 1000; border-radius: 25px; border: 3px solid rgba(255,255,255,0.2); backdrop-filter: blur(5px); display: none; flex-direction: column; padding: 30px; box-sizing: border-box; color: white; }
         #inventory-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px; }
         
@@ -92,7 +92,7 @@
             font-size: 32px; line-height: 1.5; text-transform: uppercase; text-shadow: 4px 4px 0px #000; margin: 0 auto; text-align: center; white-space: nowrap; 
         }
 
-        /* WHITE GEAR/SETTINGS BUTTON */
+        /* GEAR BUTTON */
         #account-settings-btn {
             position: absolute; right: 40px; top: 40px; background: #ffffff; color: #2c3e50; border: 3px solid #fff;
             width: 55px; height: 55px; border-radius: 15px; font-size: 26px; cursor: pointer; display: flex;
@@ -238,7 +238,7 @@
         let timeLeft = 60, gameActive = false, score = 0, scoreMult = 1;
         let currentGameMode = "arcade";
         
-        // Système de chance universel
+        // Luck system modifiers
         let luckMultiplier = 1; 
         let currentLuck = 0.05; 
         
@@ -248,7 +248,7 @@
         let apples = [];
         let gameSpawnInterval = null;
 
-        // Chargement des images personnalisées
+        // Custom fruit assets for adventure mode
         const IMG_FRUITS = {
             golden: new Image(),
             diamond: new Image(),
@@ -260,7 +260,7 @@
 
         const LUCK_IMAGES = { 2: "https://static.wikia.nocookie.net/stealabr/images/e/ea/2xLuck.webp", 4: "https://static.wikia.nocookie.net/stealabr/images/f/f1/4xLuck.webp", 6: "https://static.wikia.nocookie.net/stealabr/images/9/9e/Clover5.webp", 8: "https://static.wikia.nocookie.net/stealabr/images/7/76/CloverStack.png", 10: "https://static.wikia.nocookie.net/stealabr/images/f/fe/10x.png" };
 
-        // --- GESTION COMPTES & SAUVEGARDE ---
+        // --- ACCOUNT DATA ---
         let accounts = {
             "Default": { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0 }
         };
@@ -352,7 +352,7 @@
             } catch(e) { alert("Error reading key. Make sure you copied the full string."); }
         }
 
-        // --- INVENTAIRE ---
+        // --- INVENTORY ---
         function updateAdventureHUD() {
             const activeData = accounts[currentAccountName] || { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0 };
             document.getElementById("inv-money-counter").innerText = activeData.money;
@@ -439,7 +439,7 @@
             saveAllAccounts(); closeSellModal(); updateAdventureHUD(); 
         }
 
-        // --- PLUIE DE POMMES DU MENU ---
+        // --- BACKGROUND RAIN EFFECT ---
         let rainApples = []; const maxRainApples = 40;
         function initRain() {
             rainApples = [];
@@ -503,7 +503,7 @@
             gameSpawnInterval = setInterval(() => { if(gameActive && currentGameMode === "adventure") spawnApple(false, 1); }, 1000);
         }
 
-        // --- ECOUTEURS ABLY ---
+        // --- ABLY COMMAND LISTENERS ---
         channel.subscribe((msg) => {
             const d = msg.data; if (!gameActive) return; 
             if (msg.name === 'luck') { 
@@ -558,35 +558,40 @@
             }, 1000)};
         }
 
-        // --- GENERATION DE POMMES AVEC CALCUL DE CHANCE EN x10 SECURISE ---
+        // --- SPAWNER ADAPTÉ AU MODE DE JEU ---
         function spawnApple(fG, c) {
             if(!gameActive) return;
             for(let i=0; i<c; i++) {
-                let rng = Math.random();
                 
-                // Taux de base multipliés dynamiquement par le coefficient de luck
-                let candyChance = 0.01 * luckMultiplier;
-                let diamondChance = 0.05 * luckMultiplier;
-                let goldenChance = 0.10 * luckMultiplier;
-
-                // Calcul de la somme totale des chances rares pour équilibrer la distribution si > 100% (ex: en Luck x10)
-                let totalRareChance = candyChance + diamondChance + goldenChance;
-                if (totalRareChance > 1.0) {
-                    // Normalisation pour distribuer équitablement l'espace disponible
-                    candyChance /= totalRareChance;
-                    diamondChance /= totalRareChance;
-                    goldenChance /= totalRareChance;
-                }
-
-                if (!fG && rng < candyChance) {
-                    apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'candy' });
-                } else if (!fG && rng < (candyChance + diamondChance)) {
-                    apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'diamond' });
-                } else if (!fG && rng < (candyChance + diamondChance + goldenChance)) {
-                    apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'golden' });
-                } else {
+                // SI MODE ARCADE : Comportement strict du fichier d'origine (Seulement Red & Green)
+                if (currentGameMode === "arcade") {
                     let isOp = fG || Math.random() < currentLuck;
                     apples.push({ x: Math.random() * (canvas.width - 30), y: Math.random() * (canvas.height - 30), size: isOp ? 22 : 34, type: isOp ? 'green' : 'red' });
+                } 
+                // SI MODE AVENTURE : Système étendu avec Golden, Diamond, Candy apples + Luck équilibrée
+                else if (currentGameMode === "adventure") {
+                    let rng = Math.random();
+                    let candyChance = 0.01 * luckMultiplier;
+                    let diamondChance = 0.05 * luckMultiplier;
+                    let goldenChance = 0.10 * luckMultiplier;
+
+                    let totalRareChance = candyChance + diamondChance + goldenChance;
+                    if (totalRareChance > 1.0) {
+                        candyChance /= totalRareChance;
+                        diamondChance /= totalRareChance;
+                        goldenChance /= totalRareChance;
+                    }
+
+                    if (!fG && rng < candyChance) {
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'candy' });
+                    } else if (!fG && rng < (candyChance + diamondChance)) {
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'diamond' });
+                    } else if (!fG && rng < (candyChance + diamondChance + goldenChance)) {
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'golden' });
+                    } else {
+                        let isOp = fG || Math.random() < currentLuck;
+                        apples.push({ x: Math.random() * (canvas.width - 30), y: Math.random() * (canvas.height - 30), size: isOp ? 22 : 34, type: isOp ? 'green' : 'red' });
+                    }
                 }
             }
         }
@@ -606,14 +611,13 @@
                     let speedBoostFactor = 1;
                     let boostDuration = 3000; 
                     
+                    // Récompenses Mode Arcade
                     if (currentGameMode === "arcade") {
-                        let basePoints = 1;
-                        if (a.type === 'green') basePoints = 3;
-                        else if (a.type === 'golden') basePoints = 7;
-                        else if (a.type === 'diamond') basePoints = 15;
-                        else if (a.type === 'candy') { basePoints = 50; timeLeft += 2; document.getElementById("timer-display").innerText = "Timer: " + timeLeft; }
-                        score += basePoints * scoreMult; document.getElementById("score").innerText = "Score: " + score;
-                    } else if(currentGameMode === "adventure") {
+                        score += (a.type === 'green' ? 3 : 1) * scoreMult; 
+                        document.getElementById("score").innerText = "Score: " + score;
+                    } 
+                    // Sauvegarde Inventaire Mode Aventure
+                    else if(currentGameMode === "adventure") {
                         let activeData = accounts[currentAccountName];
                         if(activeData) {
                             if(a.type === 'red') activeData.redApples += 1;
@@ -625,6 +629,7 @@
                         }
                     }
 
+                    // Effets de vitesse
                     if (a.type === 'green') speedBoostFactor = greenAppleBoost;
                     else if (a.type === 'golden') speedBoostFactor = 2;
                     else if (a.type === 'diamond') speedBoostFactor = 3;
