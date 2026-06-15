@@ -51,7 +51,6 @@
         .txt-violet { color: #A020F0; }
         .rainbow-text { background: linear-gradient(to right, #ff9999, #ffcc99, #ffff99, #99ff99, #99ccff, #cc99ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.3)); }
         
-        /* Effet de texte dégradé style GALAXIE SPATIALE (Couleurs Claires uniquement) */
         .galaxy-text { background: linear-gradient(to right, #ffb3ff, #b3f0ff, #e6b3ff, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; filter: drop-shadow(0px 0px 5px rgba(179,240,255,0.6)); }
 
         #hud-events { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: row-reverse; gap: 15px; z-index: 1000; }
@@ -192,13 +191,14 @@
         let currentLuck = 0.05; 
         let activeTimers = {}, player = { x: canvas.width / 2, y: canvas.height / 2 };
         
-        // Vitesse de base fixée à 2.5 (parfaitement au milieu de 1 et 5)
         let ball = { x: 100, y: 100, speed: 2.5, baseSpeed: 2.5, emoji: "🏐" };
         let greenAppleBoost = 3; 
         let apples = [];
         let gameSpawnInterval = null;
 
         const IMG_FRUITS = {
+            red: new Image(),
+            green: new Image(),
             golden: new Image(),
             diamond: new Image(),
             candy: new Image(),
@@ -206,6 +206,8 @@
             galaxy: new Image(),
             dark: new Image()
         };
+        IMG_FRUITS.red.src = "https://minecraft.wiki/images/Apple_JE3_BE3.png?3853a";
+        IMG_FRUITS.green.src = "https://media.forgecdn.net/avatars/thumbnails/1159/26/256/256/638727529052260282.png";
         IMG_FRUITS.golden.src = "https://static.wikia.nocookie.net/minecraft_gamepedia/images/5/54/Golden_Apple_JE2_BE2.png/revision/latest/thumbnail/width/360/height/360?cb=20200521041809";
         IMG_FRUITS.diamond.src = "https://minecraft-max.net/upload/iblock/e00/t1ck3mvx35ipy8qck6de5vejzaul0ui4.png";
         IMG_FRUITS.candy.src = "https://media.forgecdn.net/avatars/thumbnails/1126/504/256/256/638684252218093369.png";
@@ -291,8 +293,8 @@
             document.getElementById("pinned-money-counter").innerText = activeData.money;
             const grid = document.getElementById("inventory-grid"); grid.innerHTML = "";
             const itemTypes = [
-                { id: 'red', isImage: false, content: '🍎', count: activeData.redApples },
-                { id: 'green', isImage: false, content: '🍏', count: activeData.greenApples },
+                { id: 'red', isImage: true, content: IMG_FRUITS.red.src, count: activeData.redApples },
+                { id: 'green', isImage: true, content: IMG_FRUITS.green.src, count: activeData.greenApples },
                 { id: 'golden', isImage: true, content: IMG_FRUITS.golden.src, count: activeData.goldenApples },
                 { id: 'diamond', isImage: true, content: IMG_FRUITS.diamond.src, count: activeData.diamondApples },
                 { id: 'candy', isImage: true, content: IMG_FRUITS.candy.src, count: activeData.candyApples },
@@ -303,7 +305,7 @@
             itemTypes.forEach(item => {
                 if (item.count > 0) {
                     const card = document.createElement("div"); card.className = "inv-item-card";
-                    let visualContent = item.isImage ? `<img src="${item.content}" class="inv-item-icon-img" />` : `<span>${item.content}</span>`;
+                    let visualContent = `<img src="${item.content}" class="inv-item-icon-img" />`;
                     card.innerHTML = `<div class="inv-item-info">${visualContent}<span class="inv-item-count">x${item.count}</span></div><button class="sell-btn" onclick="openSellModal('${item.id}')">💱</button>`;
                     grid.appendChild(card);
                 }
@@ -368,14 +370,22 @@
         function initRain() {
             rainApples = [];
             for (let i = 0; i < maxRainApples; i++) {
-                rainApples.push({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight - window.innerHeight, speed: 2 + Math.random() * 3, size: 24 + Math.random() * 16, emoji: Math.random() < 0.10 ? "🍏" : "🍎" });
+                rainApples.push({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight - window.innerHeight, speed: 2 + Math.random() * 3, size: 24 + Math.random() * 16, type: Math.random() < 0.10 ? 'green' : 'red' });
             }
         }
         function updateRain() {
-            if (gameActive) return; rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height); rainCtx.textAlign = "center";
+            if (gameActive) return; rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
             for (let i = 0; i < rainApples.length; i++) {
-                let a = rainApples[i]; a.y += a.speed; if (a.y > rainCanvas.height + 40) { a.y = -40; a.x = Math.random() * rainCanvas.width; a.speed = 2 + Math.random() * 3; a.emoji = Math.random() < 0.10 ? "🍏" : "🍎" };
-                rainCtx.font = a.size + "px 'Nunito'"; rainCtx.fillText(a.emoji, a.x, a.y);
+                let a = rainApples[i]; a.y += a.speed; 
+                if (a.y > rainCanvas.height + 40) { 
+                    a.y = -40; a.x = Math.random() * rainCanvas.width; a.speed = 2 + Math.random() * 3; 
+                    a.type = Math.random() < 0.10 ? 'green' : 'red'; 
+                }
+                let imgObj = IMG_FRUITS[a.type];
+                if (imgObj && imgObj.complete) {
+                    let dSize = a.type === 'red' ? a.size * 1.5 : a.size;
+                    rainCtx.drawImage(imgObj, a.x - dSize/2, a.y - dSize/2, dSize, dSize);
+                }
             }
             requestAnimationFrame(updateRain);
         }
@@ -515,9 +525,9 @@
 
         function spawnAppleAdmin(type, count) {
             if(!gameActive) return;
-            let size = (type === 'green') ? 22 : 32; if(type === 'red') size = 34;
+            let size = (type === 'green') ? 25 : 32; if(type === 'red') size = 55;
             for(let i=0; i<count; i++) {
-                apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: size, type: type });
+                apples.push({ x: Math.random() * (canvas.width - 60), y: Math.random() * (canvas.height - 60), size: size, type: type });
             }
         }
 
@@ -526,7 +536,7 @@
             for(let i=0; i<c; i++) {
                 if (currentGameMode === "arcade") {
                     let isOp = fG || Math.random() < currentLuck;
-                    apples.push({ x: Math.random() * (canvas.width - 30), y: Math.random() * (canvas.height - 30), size: isOp ? 22 : 34, type: isOp ? 'green' : 'red' });
+                    apples.push({ x: Math.random() * (canvas.width - 60), y: Math.random() * (canvas.height - 60), size: isOp ? 25 : 55, type: isOp ? 'green' : 'red' });
                 } 
                 else if (currentGameMode === "adventure") {
                     let rng = Math.random();
@@ -561,7 +571,7 @@
                     } 
                     else {
                         let isOp = fG || Math.random() < currentLuck;
-                        apples.push({ x: Math.random() * (canvas.width - 30), y: Math.random() * (canvas.height - 30), size: isOp ? 22 : 34, type: isOp ? 'green' : 'red' });
+                        apples.push({ x: Math.random() * (canvas.width - 60), y: Math.random() * (canvas.height - 60), size: isOp ? 25 : 55, type: isOp ? 'green' : 'red' });
                     }
                 }
             }
@@ -572,15 +582,19 @@
             let dx = player.x - ball.x, dy = player.y - ball.y, dist = Math.sqrt(dx*dx+dy*dy);
             if(dist > 35) { ball.x += (dx/dist)*ball.speed; ball.y += (dy/dist)*ball.speed; }
             
-            // Encadrement strict de la vitesse (Min 1, Max 5)
             if (ball.speed > 5) {
                 ball.speed = 5;
             } else if (ball.speed < 1) {
                 ball.speed = 1;
             }
 
+            // Réinitialisation des filtres et ombres pour garantir les vraies couleurs natales de la manette 🕹️
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = "transparent";
+            ctx.fillStyle = "#ffffff";
+            
             ctx.font = "bold 40px Nunito"; ctx.textAlign = "center"; 
-            ctx.fillText("🕹", player.x, player.y); ctx.fillText(ball.emoji, ball.x, ball.y);
+            ctx.fillText("🕹️", player.x, player.y); ctx.fillText(ball.emoji, ball.x, ball.y);
             
             apples = apples.filter(a => {
                 let hitBox = a.size;
@@ -614,17 +628,19 @@
                     else if (a.type === 'dark') { speedBoostFactor = 3; boostDuration = 60000; } 
 
                     if (speedBoostFactor > 1) {
-                        ball.speed *= speedBoostFactor; setTimeout(() => { ball.speed /= speedBoostFactor; }, boostDuration);
+                        ball.speed = Math.min(5, ball.speed * speedBoostFactor); 
+                        setTimeout(() => { 
+                            ball.speed = ball.baseSpeed; 
+                        }, boostDuration);
                     }
                     return false;
                 }
                 
-                if (a.type === 'red' || a.type === 'green') {
-                    ctx.font = a.size + "px Nunito"; ctx.fillText(a.type === 'green' ? "🍏" : "🍎", a.x, a.y);
-                } else {
-                    let imgObj = IMG_FRUITS[a.type];
-                    if (imgObj && imgObj.complete) { ctx.drawImage(imgObj, a.x - a.size/2, a.y - a.size/2, a.size, a.size); } 
-                    else { ctx.font = "24px Nunito"; ctx.fillText("✨", a.x, a.y); }
+                let imgObj = IMG_FRUITS[a.type];
+                if (imgObj && imgObj.complete) { 
+                    ctx.drawImage(imgObj, a.x - a.size/2, a.y - a.size/2, a.size, a.size); 
+                } else { 
+                    ctx.font = "24px Nunito"; ctx.fillText("✨", a.x, a.y); 
                 }
                 return true;
             });
