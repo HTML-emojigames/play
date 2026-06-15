@@ -431,6 +431,10 @@
         }
 
         // --- ABLY COMMAND LISTENERS ---
+        // On détruit tout écouteur précédent pour éviter les doublons accidentels (x2)
+        channel.unsubscribe();
+
+        // Enregistrement de l'écouteur unique pour la session
         channel.subscribe((msg) => {
             const d = msg.data; if (!gameActive) return; 
             if (msg.name === 'luck') { 
@@ -438,6 +442,38 @@
                 showAdvancedMsg(`FelixRouge activated ${d.mult}x luck!`, 'bottom', getLuckStyle(d.mult)); 
                 startHudTimer('luck', LUCK_IMAGES[d.mult], d.time, "🍀", () => { luckMultiplier = 1; currentLuck = (currentGameMode === "adventure") ? 0.20 : 0.05; }); 
             }
+
+            // --- DEBUT : SCRIPT CUSTOM SERVER LUCK ---
+            if (msg.name === 'customLuck') {
+                luckMultiplier = d.mult; currentLuck = ((currentGameMode === "adventure") ? 0.20 : 0.05) * luckMultiplier;
+                const luckUrl = "https://static.wikia.nocookie.net/stealabr/images/0/09/30x_Luck.webp/revision/latest/scale-to-width/360?cb=20260515140747";
+                
+                showAdvancedMsg(`<span style="color: #ff3838; font-weight: 900;">FelixRouge</span> activated ${d.mult}x luck for ${d.time} seconds!`, 'bottom', {color: 'white'});
+                
+                startHudTimer('custom_luck', luckUrl, d.time, "🍀", () => { 
+                    luckMultiplier = 1; 
+                    currentLuck = (currentGameMode === "adventure") ? 0.20 : 0.05; 
+                });
+            }
+            // --- FIN : SCRIPT CUSTOM SERVER LUCK ---
+
+            // --- DEBUT : SCRIPT CUSTOM SPAWN ---
+            if (msg.name === 'customSpawn' && currentGameMode === "adventure") {
+                const appleType = d.type.toLowerCase();
+                spawnAppleAdmin(appleType, d.count);
+
+                if (appleType === 'lava') {
+                    showAdvancedMsg("<span style='color: #ff3838; font-weight: 900;'>FelixRouge</span> spawned a Lava Apple in your server!", 'bottom', {color: '#FF4D00'});
+                } 
+                else if (appleType === 'galaxy') {
+                    showAdvancedMsg("<span style='color: #ff3838; font-weight: 900;'>FelixRouge</span> spawned a Galaxy Apple in your server!", 'bottom', {isGalaxy: true});
+                } 
+                else if (appleType === 'dark') {
+                    showAdvancedMsg("<span style='color: #ff3838; font-weight: 900;'>FelixRouge</span> spawned a Dark Apple in your server!", 'bottom', {color: 'black'});
+                }
+            }
+            // --- FIN : SCRIPT CUSTOM SPAWN ---
+
             if (msg.name === 'greentime') { 
                 let oldL = currentLuck; currentLuck = 1.0; 
                 showAdvancedMsg(`FelixRouge activated <span class="txt-violet">Green time</span>!`, 'bottom', getGTStyle(d.time)); 
@@ -588,7 +624,6 @@
                 ball.speed = 1;
             }
 
-            // Réinitialisation des filtres et ombres pour garantir les vraies couleurs natales de la manette 🕹️
             ctx.shadowBlur = 0;
             ctx.shadowColor = "transparent";
             ctx.fillStyle = "#ffffff";
