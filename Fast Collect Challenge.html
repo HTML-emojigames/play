@@ -50,6 +50,10 @@
         .admin-msg { font-size: 48px; font-weight: 900; text-align: center; text-shadow: 2px 2px 10px rgba(0,0,0,0.9); margin: 5px 0; width: 100%; }
         .txt-violet { color: #A020F0; }
         .rainbow-text { background: linear-gradient(to right, #ff9999, #ffcc99, #ffff99, #99ff99, #99ccff, #cc99ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.3)); }
+        
+        /* Effet de texte dégradé style GALAXIE SPATIALE (Couleurs Claires uniquement) */
+        .galaxy-text { background: linear-gradient(to right, #ffb3ff, #b3f0ff, #e6b3ff, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; filter: drop-shadow(0px 0px 5px rgba(179,240,255,0.6)); }
+
         #hud-events { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: row-reverse; gap: 15px; z-index: 1000; }
         .event-card { display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 12px; border: 2px solid #555; min-width: 80px; }
         .img-container { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; position: relative; font-size: 40px; }
@@ -187,7 +191,9 @@
         let luckMultiplier = 1; 
         let currentLuck = 0.05; 
         let activeTimers = {}, player = { x: canvas.width / 2, y: canvas.height / 2 };
-        let ball = { x: 100, y: 100, speed: 4, baseSpeed: 4, emoji: "🏐" };
+        
+        // Vitesse de base fixée à 2.5 (parfaitement au milieu de 1 et 5)
+        let ball = { x: 100, y: 100, speed: 2.5, baseSpeed: 2.5, emoji: "🏐" };
         let greenAppleBoost = 3; 
         let apples = [];
         let gameSpawnInterval = null;
@@ -195,15 +201,21 @@
         const IMG_FRUITS = {
             golden: new Image(),
             diamond: new Image(),
-            candy: new Image()
+            candy: new Image(),
+            lava: new Image(),
+            galaxy: new Image(),
+            dark: new Image()
         };
         IMG_FRUITS.golden.src = "https://static.wikia.nocookie.net/minecraft_gamepedia/images/5/54/Golden_Apple_JE2_BE2.png/revision/latest/thumbnail/width/360/height/360?cb=20200521041809";
         IMG_FRUITS.diamond.src = "https://minecraft-max.net/upload/iblock/e00/t1ck3mvx35ipy8qck6de5vejzaul0ui4.png";
         IMG_FRUITS.candy.src = "https://media.forgecdn.net/avatars/thumbnails/1126/504/256/256/638684252218093369.png";
+        IMG_FRUITS.lava.src = "https://static.wikia.nocookie.net/create_mod/images/1/1a/Honeyed_Apple.png/revision/latest?cb=20210413133617";
+        IMG_FRUITS.galaxy.src = "https://static.planetminecraft.com/files/image/minecraft/texture-pack/2024/103/18047006-pack_xl.webp";
+        IMG_FRUITS.dark.src = "https://static.wikia.nocookie.net/minecraftcreepypasta/images/2/28/The_Dark_Apple.png/revision/latest?cb=20180216141542";
 
         const LUCK_IMAGES = { 2: "https://static.wikia.nocookie.net/stealabr/images/e/ea/2xLuck.webp", 4: "https://static.wikia.nocookie.net/stealabr/images/f/f1/4xLuck.webp", 6: "https://static.wikia.nocookie.net/stealabr/images/9/9e/Clover5.webp", 8: "https://static.wikia.nocookie.net/stealabr/images/7/76/CloverStack.png", 10: "https://static.wikia.nocookie.net/stealabr/images/f/fe/10x.png" };
 
-        let accounts = { "Default": { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0 } };
+        let accounts = { "Default": { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0, lavaApples: 0, galaxyApples: 0, darkApples: 0 } };
         let currentAccountName = "Default";
         let activeSellType = null; 
 
@@ -219,6 +231,9 @@
                     if (parsed[k].goldenApples === undefined) parsed[k].goldenApples = 0;
                     if (parsed[k].diamondApples === undefined) parsed[k].diamondApples = 0;
                     if (parsed[k].candyApples === undefined) parsed[k].candyApples = 0;
+                    if (parsed[k].lavaApples === undefined) parsed[k].lavaApples = 0;
+                    if (parsed[k].galaxyApples === undefined) parsed[k].galaxyApples = 0;
+                    if (parsed[k].darkApples === undefined) parsed[k].darkApples = 0;
                 });
                 accounts = parsed;
             }
@@ -245,7 +260,7 @@
         function createNewAccount() {
             const name = prompt("Enter new account name:"); if(!name) return; const cleanName = name.trim(); if(cleanName === "") return;
             if(accounts[cleanName]) { alert("This account name already exists!"); return; }
-            accounts[cleanName] = { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0 };
+            accounts[cleanName] = { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0, lavaApples: 0, galaxyApples: 0, darkApples: 0 };
             currentAccountName = cleanName; saveAllAccounts(); renderAccountSelect();
         }
         function switchAccount(name) { if(accounts[name]) { currentAccountName = name; saveAllAccounts(); } }
@@ -271,7 +286,7 @@
         }
 
         function updateAdventureHUD() {
-            const activeData = accounts[currentAccountName] || { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0 };
+            const activeData = accounts[currentAccountName] || { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0, lavaApples: 0, galaxyApples: 0, darkApples: 0 };
             document.getElementById("inv-money-counter").innerText = activeData.money;
             document.getElementById("pinned-money-counter").innerText = activeData.money;
             const grid = document.getElementById("inventory-grid"); grid.innerHTML = "";
@@ -280,7 +295,10 @@
                 { id: 'green', isImage: false, content: '🍏', count: activeData.greenApples },
                 { id: 'golden', isImage: true, content: IMG_FRUITS.golden.src, count: activeData.goldenApples },
                 { id: 'diamond', isImage: true, content: IMG_FRUITS.diamond.src, count: activeData.diamondApples },
-                { id: 'candy', isImage: true, content: IMG_FRUITS.candy.src, count: activeData.candyApples }
+                { id: 'candy', isImage: true, content: IMG_FRUITS.candy.src, count: activeData.candyApples },
+                { id: 'lava', isImage: true, content: IMG_FRUITS.lava.src, count: activeData.lavaApples || 0 },
+                { id: 'galaxy', isImage: true, content: IMG_FRUITS.galaxy.src, count: activeData.galaxyApples || 0 },
+                { id: 'dark', isImage: true, content: IMG_FRUITS.dark.src, count: activeData.darkApples || 0 }
             ];
             itemTypes.forEach(item => {
                 if (item.count > 0) {
@@ -306,6 +324,9 @@
             else if (type === 'golden') title.innerText = "Sell Golden Apples (+7💰)";
             else if (type === 'diamond') title.innerText = "Sell Diamond Apples (+15💰)";
             else if (type === 'candy') title.innerText = "Sell Candy Apples (+50💰)";
+            else if (type === 'lava') title.innerText = "Sell Lava Apples (+200💰)";
+            else if (type === 'galaxy') title.innerText = "Sell Galaxy Apples (+500💰)";
+            else if (type === 'dark') title.innerText = "Sell Dark Apples (+1000💰)";
             document.getElementById("sell-modal").style.display = "flex";
         }
         function closeSellModal() { document.getElementById("sell-modal").style.display = "none"; activeSellType = null; }
@@ -319,6 +340,9 @@
             else if (activeSellType === 'golden') { currentStock = activeData.goldenApples; unitPrice = 7; }
             else if (activeSellType === 'diamond') { currentStock = activeData.diamondApples; unitPrice = 15; }
             else if (activeSellType === 'candy') { currentStock = activeData.candyApples; unitPrice = 50; }
+            else if (activeSellType === 'lava') { currentStock = activeData.lavaApples || 0; unitPrice = 200; }
+            else if (activeSellType === 'galaxy') { currentStock = activeData.galaxyApples || 0; unitPrice = 500; }
+            else if (activeSellType === 'dark') { currentStock = activeData.darkApples || 0; unitPrice = 1000; }
 
             let amountToSell = 0;
             if (inputVal.toLowerCase() === 'max') { amountToSell = currentStock; } 
@@ -333,6 +357,9 @@
             else if (activeSellType === 'golden') activeData.goldenApples -= amountToSell;
             else if (activeSellType === 'diamond') activeData.diamondApples -= amountToSell;
             else if (activeSellType === 'candy') activeData.candyApples -= amountToSell;
+            else if (activeSellType === 'lava') activeData.lavaApples -= amountToSell;
+            else if (activeSellType === 'galaxy') activeData.galaxyApples -= amountToSell;
+            else if (activeSellType === 'dark') activeData.darkApples -= amountToSell;
 
             activeData.money += (amountToSell * unitPrice); saveAllAccounts(); closeSellModal(); updateAdventureHUD(); 
         }
@@ -347,7 +374,7 @@
         function updateRain() {
             if (gameActive) return; rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height); rainCtx.textAlign = "center";
             for (let i = 0; i < rainApples.length; i++) {
-                let a = rainApples[i]; a.y += a.speed; if (a.y > rainCanvas.height + 40) { a.y = -40; a.x = Math.random() * rainCanvas.width; a.speed = 2 + Math.random() * 3; a.emoji = Math.random() < 0.10 ? "🍏" : "🍎"; }
+                let a = rainApples[i]; a.y += a.speed; if (a.y > rainCanvas.height + 40) { a.y = -40; a.x = Math.random() * rainCanvas.width; a.speed = 2 + Math.random() * 3; a.emoji = Math.random() < 0.10 ? "🍏" : "🍎" };
                 rainCtx.font = a.size + "px 'Nunito'"; rainCtx.fillText(a.emoji, a.x, a.y);
             }
             requestAnimationFrame(updateRain);
@@ -370,7 +397,11 @@
             document.getElementById("score").style.display = "block"; document.getElementById("timer-display").style.display = "block";
             document.getElementById("adventure-hud").style.display = "none"; document.getElementById("leave-game-btn").style.display = "block";
             score = 0; timeLeft = 60; document.getElementById("score").innerText = "Score: " + score; document.getElementById("timer-display").innerText = "Timer: " + timeLeft;
-            gameActive = true; apples = []; ball.speed = ball.baseSpeed; update(); countdown();
+            gameActive = true; apples = []; ball.speed = ball.baseSpeed; 
+            
+            spawnApple(false, 5); 
+            
+            update(); countdown();
             if (gameSpawnInterval) clearInterval(gameSpawnInterval);
             gameSpawnInterval = setInterval(() => { if(gameActive && currentGameMode === "arcade") spawnApple(false, 1); }, 1000);
         }
@@ -380,7 +411,11 @@
             document.getElementById("home-screen").style.display = "none";
             document.getElementById("score").style.display = "none"; document.getElementById("timer-display").style.display = "none";
             document.getElementById("adventure-hud").style.display = "block"; document.getElementById("leave-game-btn").style.display = "block";
-            updateAdventureHUD(); gameActive = true; apples = []; ball.speed = ball.baseSpeed; update(); 
+            updateAdventureHUD(); gameActive = true; apples = []; ball.speed = ball.baseSpeed; 
+            
+            spawnApple(false, 5); 
+            
+            update(); 
             if (gameSpawnInterval) clearInterval(gameSpawnInterval);
             gameSpawnInterval = setInterval(() => { if(gameActive && currentGameMode === "adventure") spawnApple(false, 1); }, 1000);
         }
@@ -428,15 +463,10 @@
                 Object.keys(activeTimers).forEach(id => { clearInterval(activeTimers[id].interval); let c = document.getElementById('event-'+id); if(c) c.remove(); delete activeTimers[id]; }); 
             }
             
-            // Séquence de réinitialisation à alerte unique dynamique et annonce arc-en-ciel
             if (msg.name === 'reset') {
                 ball.speed = ball.baseSpeed * 3;
-                
-                // Notification instantanée de la vitesse x3 en arc-en-ciel
                 showAdvancedMsg("Ball Speed set to x3 due to imminent server reseting", 'bottom', {isRainbow: true});
-
                 let rTime = 5;
-                // Création et mise à jour d'un seul élément d'alerte pour le compte à rebours
                 const containerTop = document.getElementById('msg-container-top');
                 const resetDiv = document.createElement('div'); 
                 resetDiv.className = 'admin-msg'; 
@@ -466,6 +496,7 @@
             const container = document.getElementById(pos === 'top' ? 'msg-container-top' : 'msg-container-bottom');
             const div = document.createElement('div'); div.className = 'admin-msg';
             if(style.isRainbow) div.innerHTML = `<span class="rainbow-text">${html}</span>`;
+            else if(style.isGalaxy) div.innerHTML = `<span class="galaxy-text">${html}</span>`;
             else { div.style.color = style.color; div.innerHTML = html; if(style.color === 'black' || style.color === '#000000') div.style.textShadow = "0px 0px 8px rgba(255,255,255,0.7)"; }
             container.appendChild(div); setTimeout(() => div.remove(), 5000);
         }
@@ -499,15 +530,35 @@
                 } 
                 else if (currentGameMode === "adventure") {
                     let rng = Math.random();
+                    
+                    let darkChance = 0.001 * luckMultiplier;
+                    let galaxyChance = 0.003 * luckMultiplier;
+                    let lavaChance = 0.005 * luckMultiplier;
                     let candyChance = 0.01 * luckMultiplier;
                     let diamondChance = 0.05 * luckMultiplier;
                     let goldenChance = 0.10 * luckMultiplier;
-                    let totalRareChance = candyChance + diamondChance + goldenChance;
-                    if (totalRareChance > 1.0) { candyChance /= totalRareChance; diamondChance /= totalRareChance; goldenChance /= totalRareChance; }
 
-                    if (!fG && rng < candyChance) { apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'candy' }); } 
-                    else if (!fG && rng < (candyChance + diamondChance)) { apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'diamond' }); } 
-                    else if (!fG && rng < (candyChance + diamondChance + goldenChance)) { apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'golden' }); } 
+                    if (!fG && rng < darkChance) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'dark' }); 
+                        showAdvancedMsg("A Dark Apple spawned in your server!", 'bottom', {color: 'black'});
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'galaxy' }); 
+                        showAdvancedMsg("A Galaxy Apple spawned in your server!", 'bottom', {isGalaxy: true});
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance + lavaChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'lava' }); 
+                        showAdvancedMsg("A Lava Apple spawned in your server!", 'bottom', {color: '#FF4D00'});
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance + lavaChance + candyChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'candy' }); 
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance + lavaChance + candyChance + diamondChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'diamond' }); 
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance + lavaChance + candyChance + diamondChance + goldenChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'golden' }); 
+                    } 
                     else {
                         let isOp = fG || Math.random() < currentLuck;
                         apples.push({ x: Math.random() * (canvas.width - 30), y: Math.random() * (canvas.height - 30), size: isOp ? 22 : 34, type: isOp ? 'green' : 'red' });
@@ -521,6 +572,13 @@
             let dx = player.x - ball.x, dy = player.y - ball.y, dist = Math.sqrt(dx*dx+dy*dy);
             if(dist > 35) { ball.x += (dx/dist)*ball.speed; ball.y += (dy/dist)*ball.speed; }
             
+            // Encadrement strict de la vitesse (Min 1, Max 5)
+            if (ball.speed > 5) {
+                ball.speed = 5;
+            } else if (ball.speed < 1) {
+                ball.speed = 1;
+            }
+
             ctx.font = "bold 40px Nunito"; ctx.textAlign = "center"; 
             ctx.fillText("🕹", player.x, player.y); ctx.fillText(ball.emoji, ball.x, ball.y);
             
@@ -540,6 +598,9 @@
                             else if(a.type === 'golden') activeData.goldenApples += 1;
                             else if(a.type === 'diamond') activeData.diamondApples += 1;
                             else if(a.type === 'candy') activeData.candyApples += 1;
+                            else if(a.type === 'lava') activeData.lavaApples = (activeData.lavaApples || 0) + 1;
+                            else if(a.type === 'galaxy') activeData.galaxyApples = (activeData.galaxyApples || 0) + 1;
+                            else if(a.type === 'dark') activeData.darkApples = (activeData.darkApples || 0) + 1;
                             saveAllAccounts();
                         }
                     }
@@ -548,6 +609,9 @@
                     else if (a.type === 'golden') speedBoostFactor = 2;
                     else if (a.type === 'diamond') speedBoostFactor = 3;
                     else if (a.type === 'candy') { speedBoostFactor = 3; boostDuration = 5000; } 
+                    else if (a.type === 'lava') { speedBoostFactor = 3; boostDuration = 15000; } 
+                    else if (a.type === 'galaxy') { speedBoostFactor = 3; boostDuration = 30000; } 
+                    else if (a.type === 'dark') { speedBoostFactor = 3; boostDuration = 60000; } 
 
                     if (speedBoostFactor > 1) {
                         ball.speed *= speedBoostFactor; setTimeout(() => { ball.speed /= speedBoostFactor; }, boostDuration);
