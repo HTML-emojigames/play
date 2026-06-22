@@ -1,240 +1,174 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fast Collect Challenge</title>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; overflow: hidden; background-color: #222; font-family: 'Nunito', sans-serif; user-select: none; }
+        * { font-family: 'Nunito', sans-serif !important; }
+        body { margin: 0; overflow: hidden; background-color: #222; font-weight: 500; user-select: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
-        /* HUD du Jeu (caché au départ) */
         #score, #timer-display { position: absolute; color: white; font-size: 28px; font-weight: 900; z-index: 10; text-shadow: 2px 2px 4px black; display: none; }
         #score { left: 20px; top: 20px; }
         #timer-display { right: 20px; top: 20px; }
         
+        #adventure-hud { position: absolute; left: 20px; top: 20px; display: none; z-index: 10; }
+        .hud-row { display: flex; align-items: center; gap: 15px; }
+        #open-inv-btn { background: #487eb0; color: white; border: 3px solid #fff; font-size: 14px; padding: 12px 20px; border-radius: 12px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.4); transition: transform 0.2s, background 0.2s; font-weight: 700; }
+        #open-inv-btn:hover { transform: scale(1.05); background: #00a8ff; }
+        .pinned-money { background: #f1c40f; color: #2c3e50; font-weight: 700; font-size: 20px; padding: 10px 22px; border-radius: 50px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid #fff; }
+
+        #inventory-screen { position: fixed; top: 5vh; left: 5vw; width: 90vw; height: 90vh; background: rgba(0, 0, 0, 0.5); z-index: 1000; border-radius: 25px; border: 3px solid rgba(255,255,255,0.2); backdrop-filter: blur(5px); display: none; flex-direction: column; padding: 30px; box-sizing: border-box; color: white; }
+        #inventory-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px; }
+        .money-badge { background: #f1c40f; color: #2c3e50; font-weight: 700; font-size: 24px; padding: 10px 30px; border-radius: 50px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        #close-inv-btn { background: #c23616; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 16px; }
+        #close-inv-btn:hover { background: #ea2027; }
+
+        #inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; overflow-y: auto; flex-grow: 1; padding-right: 10px; }
+        .inv-item-card { background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255,255,255,0.15); border-radius: 50px; height: 90px; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; position: relative; overflow: hidden; transition: background 0.2s, border-color 0.2s; }
+        .inv-item-card:hover { background: rgba(255, 255, 255, 0.18); border-color: rgba(255,255,255,0.4); }
+        .inv-item-info { display: flex; align-items: center; gap: 15px; font-size: 32px; font-weight: 700; }
+        .inv-item-icon-img { width: 45px; height: 45px; object-fit: contain; }
+        .inv-item-count { font-size: 22px; color: #f5f6fa; }
+        .sell-btn { position: absolute; right: 15px; top: 50%; transform: translateY(-50%) scale(0); background: #c23616; border: none; width: 45px; height: 45px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; box-shadow: 0 3px 8px rgba(0,0,0,0.3); }
+        .inv-item-card:hover .sell-btn { transform: translateY(-50%) scale(1); }
+        .sell-btn:hover { background: #ea2027; transform: translateY(-50%) scale(1.1) !important; }
+
+        #sell-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.2); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .sell-box { background: #2f3640; border: 3px solid #487eb0; padding: 25px; border-radius: 20px; text-align: center; color: white; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .sell-box h3 { margin-top: 0; font-size: 20px; font-weight: 700; }
+        .sell-input { width: 80%; padding: 10px; font-size: 18px; border-radius: 8px; border: 2px solid #487eb0; background: #222; color: white; text-align: center; font-weight: 700; margin-bottom: 5px; }
+        .sell-input:focus { border-color: #00a8ff; outline: none; }
+        .sell-hint { font-size: 13px; color: #dcdde1; font-style: italic; margin-bottom: 15px; display: block; }
+        .sell-actions { display: flex; justify-content: center; gap: 10px; }
+
         #msg-container-top { position: fixed; top: 60px; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 10000; pointer-events: none; }
         #msg-container-bottom { position: fixed; bottom: 150px; left: 0; width: 100%; display: flex; flex-direction: column-reverse; align-items: center; z-index: 10000; pointer-events: none; }
         .admin-msg { font-size: 48px; font-weight: 900; text-align: center; text-shadow: 2px 2px 10px rgba(0,0,0,0.9); margin: 5px 0; width: 100%; }
         .txt-violet { color: #A020F0; }
         .rainbow-text { background: linear-gradient(to right, #ff9999, #ffcc99, #ffff99, #99ff99, #99ccff, #cc99ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.3)); }
+        
+        .galaxy-text { background: linear-gradient(to right, #ffb3ff, #b3f0ff, #e6b3ff, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block; filter: drop-shadow(0px 0px 5px rgba(179,240,255,0.6)); }
+
         #hud-events { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: row-reverse; gap: 15px; z-index: 1000; }
         .event-card { display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 12px; border: 2px solid #555; min-width: 80px; }
         .img-container { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; position: relative; font-size: 40px; }
         .img-container img { width: 100%; height: 100%; object-fit: contain; position: absolute; z-index: 2; border-radius: 5px; }
-        .event-timer { color: white; font-weight: 900; font-size: 20px; margin-top: 5px; }
-        #discord-btn { position: absolute; bottom: 20px; left: 20px; z-index: 20; background: #5865F2; color: white; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: 900; }
+        .event-timer { color: white; font-weight: 700; font-size: 20px; margin-top: 5px; }
 
-        /* ÉCRAN D'ACCUEIL */
-        #home-screen {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background: radial-gradient(circle, #2c3e50, #0f171e);
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            box-sizing: border-box;
-        }
+        #leave-game-btn { position: absolute; bottom: 20px; left: 20px; z-index: 20; background: #c23616; color: white; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 16px; border: 2px solid #fff; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4); display: none; transition: background 0.2s; }
+        #leave-game-btn:hover { background: #ea2027; }
 
-        /* Canvas pour la pluie de pommes en arrière-plan */
-        #rainCanvas {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1;
-            pointer-events: none;
-        }
+        #home-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle, #2c3e50, #0f171e); z-index: 100; display: flex; flex-direction: column; box-sizing: border-box; }
+        #rainCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        .home-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; width: 100%; height: 100%; justify-content: center; }
+        .home-header { position: absolute; top: 0; left: 0; width: 100%; height: 140px; display: flex; align-items: center; padding: 0 40px; box-sizing: border-box; }
+        .logo-placeholder { font-size: 50px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.3); position: absolute; left: 40px; }
+        .main-title { color: #ff3838; font-family: 'Press Start 2P', cursive !important; font-size: 32px; line-height: 1.5; text-transform: uppercase; text-shadow: 4px 4px 0px #000; margin: 0 auto; text-align: center; white-space: nowrap; }
 
-        /* Conteneur de l'interface d'accueil au-dessus de la pluie */
-        .home-content {
-            position: relative;
-            z-index: 2;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            height: 100%;
-            justify-content: center;
-        }
+        #account-settings-btn { position: absolute; right: 40px; top: 40px; background: #ffffff; color: #2c3e50; border: 3px solid #fff; width: 55px; height: 55px; border-radius: 15px; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: transform 0.2s, background 0.2s; z-index: 10; }
+        #account-settings-btn:hover { transform: scale(1.1); background: #f0f0f0; }
 
-        /* En-tête : Logo à gauche, Titre au milieu */
-        .home-header {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%;
-            height: 140px;
-            display: flex;
-            align-items: center;
-            padding: 0 40px;
-            box-sizing: border-box;
-        }
-        .logo-placeholder {
-            font-size: 50px;
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 12px;
-            border: 2px dashed rgba(255,255,255,0.3);
-            position: absolute;
-            left: 40px;
-        }
-        .main-title {
-            color: #ff3838; /* Titre en rouge */
-            font-family: 'Press Start 2P', cursive; /* Style de police rétro */
-            font-size: 32px;
-            line-height: 1.5;
-            text-transform: uppercase;
-            text-shadow: 4px 4px 0px #000;
-            margin: 0 auto; /* Centre parfaitement le titre au milieu */
-            text-align: center;
-        }
+        #account-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.4); z-index: 2500; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        #account-panel { background: #2f3640; border: 3px solid #7ed6df; padding: 25px; border-radius: 20px; color: white; text-align: center; width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        #account-select { padding: 10px; font-size: 16px; border-radius: 8px; background: #222; color: white; border: 2px solid #7ed6df; font-weight: 700; width: 100%; margin-bottom: 15px; margin-top: 10px; }
+        .acc-btn { background: #487eb0; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 13px; margin: 3px; transition: background 0.2s; }
+        .acc-btn:hover { background: #00a8ff; }
+        .acc-btn.danger { background: #c23616; }
+        .acc-btn.danger:hover { background: #ea2027; }
 
-        /* Conteneur des Modes de Jeu */
-        .modes-container {
-            display: flex;
-            gap: 60px;
-            margin-top: 40px;
-        }
+        .modes-container { display: flex; gap: 60px; margin-top: 10px; }
+        .mode-card { width: 320px; height: 220px; background: linear-gradient(135deg, #1e272e, #2f3640); border: 4px solid #487eb0; border-radius: 20px; color: white; display: flex; justify-content: center; align-items: center; font-family: 'Press Start 2P', cursive !important; font-size: 20px; text-align: center; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; }
+        .mode-card:hover { transform: translateY(-10px) scale(1.03); border-color: #00a8ff; box-shadow: 0 15px 35px rgba(0, 168, 255, 0.4); }
 
-        /* Style de base des cadres cliquables */
-        .mode-card {
-            width: 320px;
-            height: 220px;
-            background: linear-gradient(135deg, #1e272e, #2f3640);
-            border: 4px solid #487eb0;
-            border-radius: 20px;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 20px;
-            text-align: center;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        .mode-card:hover {
-            transform: translateY(-10px) scale(1.03);
-            border-color: #00a8ff;
-            box-shadow: 0 15px 35px rgba(0, 168, 255, 0.4);
-        }
-
-        /* Ruban "Coming Soon!" pour le mode aventure */
-        .ribbon {
-            position: absolute;
-            bottom: 25px;
-            right: -50px;
-            background: #e84118;
-            color: white;
-            font-family: 'Nunito', sans-serif;
-            font-size: 13px;
-            font-weight: 900;
-            padding: 6px 50px;
-            transform: rotate(-45deg);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            letter-spacing: 1px;
-        }
-        .disabled-card {
-            opacity: 0.6;
-            cursor: not-allowed;
-            border-color: #7f8c8d;
-        }
-        .disabled-card:hover {
-            transform: none;
-            border-color: #7f8c8d;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-        }
-
-        /* Boutons d'actions ronds du bas (générique) */
-        .bottom-action-btn {
-            position: absolute;
-            bottom: 40px;
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
-            transition: transform 0.2s ease, background-color 0.2s ease;
-            cursor: pointer;
-            border: none;
-            text-decoration: none;
-        }
-        .bottom-action-btn:hover {
-            transform: scale(1.1);
-        }
-        .bottom-action-btn img {
-            width: 42px;
-            height: 42px;
-            object-fit: contain;
-        }
-
-        /* Bouton Discord - En bas à gauche */
-        .discord-btn-left {
-            left: 40px;
-            background-color: #5865F2;
-        }
-        .discord-btn-left:hover {
-            background-color: #4752c4;
-        }
-        .discord-btn-left img {
-            border-radius: 50%;
-        }
-
-        /* Bouton Jeux d'Emojis - En bas à droite */
-        .game-link-btn-right {
-            right: 40px;
-            background-color: #ffffff;
-        }
-        .game-link-btn-right:hover {
-            background-color: #f0f0f0;
-        }
+        .bottom-action-btn { position: absolute; bottom: 40px; width: 70px; height: 70px; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 6px 15px rgba(0,0,0,0.4); transition: transform 0.2s ease, background-color 0.2s ease; cursor: pointer; border: none; text-decoration: none; }
+        .bottom-action-btn:hover { transform: scale(1.1); }
+        .bottom-action-btn img { width: 42px; height: 42px; object-fit: contain; }
+        .discord-btn-left { left: 40px; background-color: #5865F2; }
+        .discord-btn-left:hover { background-color: #4752c4; }
+        .discord-btn-left img { border-radius: 50%; }
+        .game-link-btn-right { right: 40px; background-color: #ffffff; }
+        .game-link-btn-right:hover { background-color: #f0f0f0; }
+        
+        .inv-title-text { font-family: 'Press Start 2P', cursive !important; font-size: 18px; margin: 0; color: #487eb0; }
     </style>
 </head>
 <body>
 
     <div id="home-screen">
         <canvas id="rainCanvas"></canvas>
-
         <div class="home-content">
             <div class="home-header">
                 <div class="logo-placeholder">🕹️</div> 
-                <h1 class="main-title">Fast Collect<br>Challenge</h1>
+                <h1 class="main-title">Fast Collect Challenge</h1>
+                <button id="account-settings-btn" onclick="openAccountModal()">⚙️</button>
             </div>
-
             <div class="modes-container">
-                <div class="mode-card disabled-card">
-                    ADVENTURE<br>MODE
-                    <div class="ribbon">Coming Soon!</div>
-                </div>
-
-                <div class="mode-card" onclick="startGame()">
-                    ARCADE<br>MODE
-                </div>
+                <div class="mode-card" onclick="startAdventure()">ADVENTURE<br>MODE</div>
+                <div class="mode-card" onclick="startGame()">ARCADE<br>MODE</div>
             </div>
-
             <a href="https://discord.gg/CP9hFvjDDC" target="_blank" class="bottom-action-btn discord-btn-left">
                 <img src="https://static.vecteezy.com/system/resources/previews/006/892/625/non_2x/discord-logo-icon-editorial-free-vector.jpg" alt="Discord">
             </a>
-
             <a href="https://html-emojigames.github.io/play" target="_blank" class="bottom-action-btn game-link-btn-right">
                 <img src="arrondi.png" alt="Play More Games">
             </a>
         </div>
     </div>
 
+    <div id="account-modal">
+        <div id="account-panel">
+            <div style="font-weight: 700; font-size: 18px; color: #7ed6df;">👤 ADVENTURE ACCOUNTS</div>
+            <select id="account-select" onchange="switchAccount(this.value)"></select>
+            <div style="margin-bottom: 15px;">
+                <button class="acc-btn" onclick="createNewAccount()">+ New</button>
+                <button class="acc-btn" onclick="exportAccount()">📤 Export Key</button>
+                <button class="acc-btn" onclick="importAccount()">📥 Import Key</button>
+                <button class="acc-btn danger" onclick="deleteAccount()">🗑️ Delete</button>
+            </div>
+            <button class="acc-btn" style="background:#555; width:80%;" onclick="closeAccountModal()">Close</button>
+        </div>
+    </div>
+
     <div id="score">Score: 0</div>
     <div id="timer-display">Timer: 60</div>
+    
+    <div id="adventure-hud">
+        <div class="hud-row">
+            <button id="open-inv-btn" onclick="toggleInventory(true)">🎒 Inventory</button>
+            <div class="pinned-money">💰 <span id="pinned-money-counter">0</span></div>
+        </div>
+    </div>
+
+    <div id="inventory-screen">
+        <div id="inventory-header">
+            <div class="money-badge">💰 <span id="inv-money-counter">0</span></div>
+            <h2 class="inv-title-text">INVENTORY</h2>
+            <button id="close-inv-btn" onclick="toggleInventory(false)">Close ✖</button>
+        </div>
+        <div id="inventory-grid"></div>
+    </div>
+
+    <div id="sell-modal">
+        <div class="sell-box">
+            <h3 id="sell-title">Sell Apples</h3>
+            <input type="text" id="sell-quantity" class="sell-input" placeholder="Quantity">
+            <span class="sell-hint">Type "Max" to sell all</span>
+            <div class="sell-actions">
+                <button class="acc-btn" onclick="confirmTransaction()">Confirm</button>
+                <button class="acc-btn danger" onclick="closeSellModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div id="msg-container-top"></div>
     <div id="msg-container-bottom"></div>
     <div id="hud-events"></div>
-    <a href="https://discord.gg/CP9hFvjDDC" target="_blank" id="discord-btn">Join Discord</a>
+    
+    <button id="leave-game-btn" onclick="leaveGame()">🚪 Leave</button>
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -242,8 +176,6 @@
         const channel = ably.channels.get('admin-commands');
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
-        
-        // Configuration du Canvas de la pluie de l'accueil
         const rainCanvas = document.getElementById("rainCanvas");
         const rainCtx = rainCanvas.getContext("2d");
 
@@ -253,109 +185,352 @@
         }
         window.addEventListener('resize', resize); 
 
-        let timeLeft = 60, gameActive = false, currentLuck = 0.05, score = 0, scoreMult = 1;
+        let timeLeft = 60, gameActive = false, score = 0, scoreMult = 1;
+        let currentGameMode = "arcade";
+        let luckMultiplier = 1; 
+        let currentLuck = 0.05; 
         let activeTimers = {}, player = { x: canvas.width / 2, y: canvas.height / 2 };
-        let ball = { x: 100, y: 100, speed: 4, baseSpeed: 4, emoji: "🏐" }, greenAppleBoost = 3, apples = [];
+        
+        let ball = { x: 100, y: 100, speed: 2.5, baseSpeed: 2.5, emoji: "🏐" };
+        let greenAppleBoost = 3; 
+        let apples = [];
+        let gameSpawnInterval = null;
+
+        const IMG_FRUITS = {
+            red: new Image(),
+            green: new Image(),
+            golden: new Image(),
+            diamond: new Image(),
+            candy: new Image(),
+            lava: new Image(),
+            galaxy: new Image(),
+            dark: new Image()
+        };
+        IMG_FRUITS.red.src = "https://minecraft.wiki/images/Apple_JE3_BE3.png?3853a";
+        IMG_FRUITS.green.src = "https://media.forgecdn.net/avatars/thumbnails/1159/26/256/256/638727529052260282.png";
+        IMG_FRUITS.golden.src = "https://static.wikia.nocookie.net/minecraft_gamepedia/images/5/54/Golden_Apple_JE2_BE2.png/revision/latest/thumbnail/width/360/height/360?cb=20200521041809";
+        IMG_FRUITS.diamond.src = "https://minecraft-max.net/upload/iblock/e00/t1ck3mvx35ipy8qck6de5vejzaul0ui4.png";
+        IMG_FRUITS.candy.src = "https://media.forgecdn.net/avatars/thumbnails/1126/504/256/256/638684252218093369.png";
+        IMG_FRUITS.lava.src = "https://static.wikia.nocookie.net/create_mod/images/1/1a/Honeyed_Apple.png/revision/latest?cb=20210413133617";
+        IMG_FRUITS.galaxy.src = "https://static.planetminecraft.com/files/image/minecraft/texture-pack/2024/103/18047006-pack_xl.webp";
+        IMG_FRUITS.dark.src = "https://static.wikia.nocookie.net/minecraftcreepypasta/images/2/28/The_Dark_Apple.png/revision/latest?cb=20180216141542";
 
         const LUCK_IMAGES = { 2: "https://static.wikia.nocookie.net/stealabr/images/e/ea/2xLuck.webp", 4: "https://static.wikia.nocookie.net/stealabr/images/f/f1/4xLuck.webp", 6: "https://static.wikia.nocookie.net/stealabr/images/9/9e/Clover5.webp", 8: "https://static.wikia.nocookie.net/stealabr/images/7/76/CloverStack.png", 10: "https://static.wikia.nocookie.net/stealabr/images/f/fe/10x.png" };
 
-        // --- SYSTÈME DE PLUIE DE POMMES (ÉCRAN D'ACCUEIL) ---
-        let rainApples = [];
-        const maxRainApples = 40;
+        let accounts = { "Default": { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0, lavaApples: 0, galaxyApples: 0, darkApples: 0 } };
+        let currentAccountName = "Default";
+        let activeSellType = null; 
 
+        function openAccountModal() { document.getElementById("account-modal").style.display = "flex"; }
+        function closeAccountModal() { document.getElementById("account-modal").style.display = "none"; }
+
+        function loadAllAccounts() {
+            const savedAccounts = localStorage.getItem("fastCollect_accounts");
+            const savedActive = localStorage.getItem("fastCollect_activeAccount");
+            if (savedAccounts) {
+                let parsed = JSON.parse(savedAccounts);
+                Object.keys(parsed).forEach(k => {
+                    if (parsed[k].goldenApples === undefined) parsed[k].goldenApples = 0;
+                    if (parsed[k].diamondApples === undefined) parsed[k].diamondApples = 0;
+                    if (parsed[k].candyApples === undefined) parsed[k].candyApples = 0;
+                    if (parsed[k].lavaApples === undefined) parsed[k].lavaApples = 0;
+                    if (parsed[k].galaxyApples === undefined) parsed[k].galaxyApples = 0;
+                    if (parsed[k].darkApples === undefined) parsed[k].darkApples = 0;
+                });
+                accounts = parsed;
+            }
+            if (savedActive && accounts[savedActive]) { currentAccountName = savedActive; } 
+            else { currentAccountName = Object.keys(accounts)[0] || "Default"; }
+            renderAccountSelect(); updateAdventureHUD();
+        }
+
+        function saveAllAccounts() {
+            localStorage.setItem("fastCollect_accounts", JSON.stringify(accounts));
+            localStorage.setItem("fastCollect_activeAccount", currentAccountName);
+            updateAdventureHUD();
+        }
+
+        function renderAccountSelect() {
+            const select = document.getElementById("account-select");
+            select.innerHTML = "";
+            Object.keys(accounts).forEach(name => {
+                const opt = document.createElement("option"); opt.value = name; opt.innerText = name;
+                if(name === currentAccountName) opt.selected = true; select.appendChild(opt);
+            });
+        }
+
+        function createNewAccount() {
+            const name = prompt("Enter new account name:"); if(!name) return; const cleanName = name.trim(); if(cleanName === "") return;
+            if(accounts[cleanName]) { alert("This account name already exists!"); return; }
+            accounts[cleanName] = { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0, lavaApples: 0, galaxyApples: 0, darkApples: 0 };
+            currentAccountName = cleanName; saveAllAccounts(); renderAccountSelect();
+        }
+        function switchAccount(name) { if(accounts[name]) { currentAccountName = name; saveAllAccounts(); } }
+        function deleteAccount() {
+            if(Object.keys(accounts).length <= 1) { alert("You must keep at least one active account!"); return; }
+            if(confirm(`Are you sure you want to permanently delete account "${currentAccountName}"?`)) {
+                delete accounts[currentAccountName]; currentAccountName = Object.keys(accounts)[0]; saveAllAccounts(); renderAccountSelect();
+            }
+        }
+        function exportAccount() {
+            const dataStr = JSON.stringify({ name: currentAccountName, data: accounts[currentAccountName] });
+            const token = btoa(unescape(encodeURIComponent(dataStr))); prompt("Copy your backup secure key:", token);
+        }
+        function importAccount() {
+            const token = prompt("Paste your backup secure key here:"); if(!token) return;
+            try {
+                const decodedStr = decodeURIComponent(escape(atob(token.trim()))); const parsed = JSON.parse(decodedStr);
+                if(parsed.name && parsed.data) {
+                    if(accounts[parsed.name]) { if(!confirm(`An account named "${parsed.name}" already exists here. Overwrite it?`)) return; }
+                    accounts[parsed.name] = parsed.data; currentAccountName = parsed.name; saveAllAccounts(); renderAccountSelect(); alert("Account imported successfully!");
+                }
+            } catch(e) { alert("Error reading key. Make sure you copied the full string."); }
+        }
+
+        function updateAdventureHUD() {
+            const activeData = accounts[currentAccountName] || { money: 0, redApples: 0, greenApples: 0, goldenApples: 0, diamondApples: 0, candyApples: 0, lavaApples: 0, galaxyApples: 0, darkApples: 0 };
+            document.getElementById("inv-money-counter").innerText = activeData.money;
+            document.getElementById("pinned-money-counter").innerText = activeData.money;
+            const grid = document.getElementById("inventory-grid"); grid.innerHTML = "";
+            const itemTypes = [
+                { id: 'red', isImage: true, content: IMG_FRUITS.red.src, count: activeData.redApples },
+                { id: 'green', isImage: true, content: IMG_FRUITS.green.src, count: activeData.greenApples },
+                { id: 'golden', isImage: true, content: IMG_FRUITS.golden.src, count: activeData.goldenApples },
+                { id: 'diamond', isImage: true, content: IMG_FRUITS.diamond.src, count: activeData.diamondApples },
+                { id: 'candy', isImage: true, content: IMG_FRUITS.candy.src, count: activeData.candyApples },
+                { id: 'lava', isImage: true, content: IMG_FRUITS.lava.src, count: activeData.lavaApples || 0 },
+                { id: 'galaxy', isImage: true, content: IMG_FRUITS.galaxy.src, count: activeData.galaxyApples || 0 },
+                { id: 'dark', isImage: true, content: IMG_FRUITS.dark.src, count: activeData.darkApples || 0 }
+            ];
+            itemTypes.forEach(item => {
+                if (item.count > 0) {
+                    const card = document.createElement("div"); card.className = "inv-item-card";
+                    let visualContent = `<img src="${item.content}" class="inv-item-icon-img" />`;
+                    card.innerHTML = `<div class="inv-item-info">${visualContent}<span class="inv-item-count">x${item.count}</span></div><button class="sell-btn" onclick="openSellModal('${item.id}')">💱</button>`;
+                    grid.appendChild(card);
+                }
+            });
+        }
+
+        function toggleInventory(show) {
+            const invScreen = document.getElementById("inventory-screen");
+            if (show) { updateAdventureHUD(); invScreen.style.display = "flex"; gameActive = false; } 
+            else { invScreen.style.display = "none"; gameActive = true; update(); }
+        }
+
+        function openSellModal(type) {
+            activeSellType = type; const inputField = document.getElementById("sell-quantity"); inputField.value = "";
+            const title = document.getElementById("sell-title");
+            if (type === 'red') title.innerText = "Sell Red Apples (+1💰)";
+            else if (type === 'green') title.innerText = "Sell Green Apples (+3💰)";
+            else if (type === 'golden') title.innerText = "Sell Golden Apples (+7💰)";
+            else if (type === 'diamond') title.innerText = "Sell Diamond Apples (+15💰)";
+            else if (type === 'candy') title.innerText = "Sell Candy Apples (+50💰)";
+            else if (type === 'lava') title.innerText = "Sell Lava Apples (+200💰)";
+            else if (type === 'galaxy') title.innerText = "Sell Galaxy Apples (+500💰)";
+            else if (type === 'dark') title.innerText = "Sell Dark Apples (+1000💰)";
+            document.getElementById("sell-modal").style.display = "flex";
+        }
+        function closeSellModal() { document.getElementById("sell-modal").style.display = "none"; activeSellType = null; }
+
+        function confirmTransaction() {
+            if (!activeSellType) return; const activeData = accounts[currentAccountName]; if (!activeData) return;
+            const inputVal = document.getElementById("sell-quantity").value.trim();
+            let currentStock = 0, unitPrice = 0;
+            if (activeSellType === 'red') { currentStock = activeData.redApples; unitPrice = 1; }
+            else if (activeSellType === 'green') { currentStock = activeData.greenApples; unitPrice = 3; }
+            else if (activeSellType === 'golden') { currentStock = activeData.goldenApples; unitPrice = 7; }
+            else if (activeSellType === 'diamond') { currentStock = activeData.diamondApples; unitPrice = 15; }
+            else if (activeSellType === 'candy') { currentStock = activeData.candyApples; unitPrice = 50; }
+            else if (activeSellType === 'lava') { currentStock = activeData.lavaApples || 0; unitPrice = 200; }
+            else if (activeSellType === 'galaxy') { currentStock = activeData.galaxyApples || 0; unitPrice = 500; }
+            else if (activeSellType === 'dark') { currentStock = activeData.darkApples || 0; unitPrice = 1000; }
+
+            let amountToSell = 0;
+            if (inputVal.toLowerCase() === 'max') { amountToSell = currentStock; } 
+            else {
+                let parsedInt = parseInt(inputVal); if (isNaN(parsedInt) || parsedInt <= 0) { alert("Please enter a valid amount or type 'Max'."); return; }
+                amountToSell = parsedInt > currentStock ? currentStock : parsedInt;
+            }
+            if (amountToSell <= 0) { alert("You don't have any apples of this kind to sell!"); closeSellModal(); return; }
+
+            if (activeSellType === 'red') activeData.redApples -= amountToSell;
+            else if (activeSellType === 'green') activeData.greenApples -= amountToSell;
+            else if (activeSellType === 'golden') activeData.goldenApples -= amountToSell;
+            else if (activeSellType === 'diamond') activeData.diamondApples -= amountToSell;
+            else if (activeSellType === 'candy') activeData.candyApples -= amountToSell;
+            else if (activeSellType === 'lava') activeData.lavaApples -= amountToSell;
+            else if (activeSellType === 'galaxy') activeData.galaxyApples -= amountToSell;
+            else if (activeSellType === 'dark') activeData.darkApples -= amountToSell;
+
+            activeData.money += (amountToSell * unitPrice); saveAllAccounts(); closeSellModal(); updateAdventureHUD(); 
+        }
+
+        let rainApples = []; const maxRainApples = 40;
         function initRain() {
             rainApples = [];
             for (let i = 0; i < maxRainApples; i++) {
-                rainApples.push({
-                    x: Math.random() * window.innerWidth,
-                    y: Math.random() * window.innerHeight - window.innerHeight,
-                    speed: 2 + Math.random() * 3,
-                    size: 24 + Math.random() * 16,
-                    emoji: Math.random() < 0.10 ? "🍏" : "🍎"
-                });
+                rainApples.push({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight - window.innerHeight, speed: 2 + Math.random() * 3, size: 24 + Math.random() * 16, type: Math.random() < 0.10 ? 'green' : 'red' });
             }
         }
-
         function updateRain() {
-            if (gameActive) return;
-            
-            rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
-            rainCtx.textAlign = "center";
-
+            if (gameActive) return; rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
             for (let i = 0; i < rainApples.length; i++) {
-                let a = rainApples[i];
-                a.y += a.speed;
-
-                if (a.y > rainCanvas.height + 40) {
-                    a.y = -40;
-                    a.x = Math.random() * rainCanvas.width;
-                    a.speed = 2 + Math.random() * 3;
-                    a.emoji = Math.random() < 0.10 ? "🍏" : "🍎";
+                let a = rainApples[i]; a.y += a.speed; 
+                if (a.y > rainCanvas.height + 40) { 
+                    a.y = -40; a.x = Math.random() * rainCanvas.width; a.speed = 2 + Math.random() * 3; 
+                    a.type = Math.random() < 0.10 ? 'green' : 'red'; 
                 }
-
-                rainCtx.font = a.size + "px 'Nunito'";
-                rainCtx.fillText(a.emoji, a.x, a.y);
+                let imgObj = IMG_FRUITS[a.type];
+                if (imgObj && imgObj.complete) {
+                    let dSize = a.type === 'red' ? a.size * 1.5 : a.size;
+                    rainCtx.drawImage(imgObj, a.x - dSize/2, a.y - dSize/2, dSize, dSize);
+                }
             }
             requestAnimationFrame(updateRain);
         }
 
-        resize();
-        initRain();
-        updateRain();
+        resize(); initRain(); updateRain(); loadAllAccounts();
 
-        // --- FONCTION DE LANCEMENT DU JEU ---
-        function startGame() {
-            document.getElementById("home-screen").style.display = "none";
-            document.getElementById("score").style.display = "block";
-            document.getElementById("timer-display").style.display = "block";
-            
-            gameActive = true;
-            update(); 
-            countdown();
-            setInterval(() => { if(gameActive) spawnApple(false, 1); }, 1000);
+        function leaveGame() {
+            gameActive = false; if (gameSpawnInterval) { clearInterval(gameSpawnInterval); gameSpawnInterval = null; }
+            apples = []; ball.speed = ball.baseSpeed; luckMultiplier = 1; if (currentGameMode === "adventure") { saveAllAccounts(); }
+            document.getElementById("home-screen").style.display = "flex";
+            document.getElementById("score").style.display = "none"; document.getElementById("timer-display").style.display = "none";
+            document.getElementById("adventure-hud").style.display = "none"; document.getElementById("leave-game-btn").style.display = "none";
+            initRain(); updateRain();
         }
 
-        channel.subscribe((msg) => {
-            const d = msg.data;
-            if (!gameActive) return; 
+        function startGame() {
+            currentGameMode = "arcade"; luckMultiplier = 1; currentLuck = 0.05; greenAppleBoost = 3; 
+            document.getElementById("home-screen").style.display = "none";
+            document.getElementById("score").style.display = "block"; document.getElementById("timer-display").style.display = "block";
+            document.getElementById("adventure-hud").style.display = "none"; document.getElementById("leave-game-btn").style.display = "block";
+            score = 0; timeLeft = 60; document.getElementById("score").innerText = "Score: " + score; document.getElementById("timer-display").innerText = "Timer: " + timeLeft;
+            gameActive = true; apples = []; ball.speed = ball.baseSpeed; 
             
-            if (msg.name === 'luck') {
-                currentLuck = d.val;
-                showAdvancedMsg(`FelixRouge activated ${d.mult}x luck!`, 'bottom', getLuckStyle(d.mult));
-                startHudTimer('luck', LUCK_IMAGES[d.mult], d.time, "🍀", () => { currentLuck = 0.05; });
+            spawnApple(false, 5); 
+            
+            update(); countdown();
+            if (gameSpawnInterval) clearInterval(gameSpawnInterval);
+            gameSpawnInterval = setInterval(() => { if(gameActive && currentGameMode === "arcade") spawnApple(false, 1); }, 1000);
+        }
+
+        function startAdventure() {
+            currentGameMode = "adventure"; luckMultiplier = 1; currentLuck = 0.20; greenAppleBoost = 1.5; 
+            document.getElementById("home-screen").style.display = "none";
+            document.getElementById("score").style.display = "none"; document.getElementById("timer-display").style.display = "none";
+            document.getElementById("adventure-hud").style.display = "block"; document.getElementById("leave-game-btn").style.display = "block";
+            updateAdventureHUD(); gameActive = true; apples = []; ball.speed = ball.baseSpeed; 
+            
+            spawnApple(false, 5); 
+            
+            update(); 
+            if (gameSpawnInterval) clearInterval(gameSpawnInterval);
+            gameSpawnInterval = setInterval(() => { if(gameActive && currentGameMode === "adventure") spawnApple(false, 1); }, 1000);
+        }
+
+        // --- ABLY COMMAND LISTENERS ---
+        // On détruit tout écouteur précédent pour éviter les doublons accidentels (x2)
+        channel.unsubscribe();
+
+        // Enregistrement de l'écouteur unique pour la session
+        channel.subscribe((msg) => {
+            const d = msg.data; if (!gameActive) return; 
+            if (msg.name === 'luck') { 
+                luckMultiplier = d.mult; currentLuck = ((currentGameMode === "adventure") ? 0.20 : 0.05) * luckMultiplier;
+                showAdvancedMsg(`FelixRouge activated ${d.mult}x luck!`, 'bottom', getLuckStyle(d.mult)); 
+                startHudTimer('luck', LUCK_IMAGES[d.mult], d.time, "🍀", () => { luckMultiplier = 1; currentLuck = (currentGameMode === "adventure") ? 0.20 : 0.05; }); 
             }
-            if (msg.name === 'greentime') {
-                let oldL = currentLuck; currentLuck = 1.0;
-                showAdvancedMsg(`FelixRouge activated <span class="txt-violet">Green time</span>!`, 'bottom', getGTStyle(d.time));
-                startHudTimer('gt', "https://static.vecteezy.com/system/resources/previews/016/733/263/non_2x/cute-illustration-of-a-green-apple-in-cartoon-style-on-isolated-background-vector.jpg", d.time, "🍏", () => { currentLuck = oldL; });
+
+            // --- DEBUT : SCRIPT CUSTOM SERVER LUCK ---
+            if (msg.name === 'customLuck') {
+                luckMultiplier = d.mult; currentLuck = ((currentGameMode === "adventure") ? 0.20 : 0.05) * luckMultiplier;
+                const luckUrl = "https://static.wikia.nocookie.net/stealabr/images/0/09/30x_Luck.webp/revision/latest/scale-to-width/360?cb=20260515140747";
+                
+                showAdvancedMsg(`<span style="color: #ff3838; font-weight: 900;">FelixRouge</span> activated ${d.mult}x luck for ${d.time} seconds!`, 'bottom', {color: 'white'});
+                
+                startHudTimer('custom_luck', luckUrl, d.time, "🍀", () => { 
+                    luckMultiplier = 1; 
+                    currentLuck = (currentGameMode === "adventure") ? 0.20 : 0.05; 
+                });
             }
-            if (msg.name === 'doublepoints') {
-                scoreMult = 2;
-                showAdvancedMsg(`FelixRouge activated <span class="txt-violet">Double Points</span>!`, 'bottom', {isRainbow: true});
-                startHudTimer('dp', "https://fridg-front.s3.amazonaws.com/media/CACHE/images/products/lot-de-2-pommes-fuji_fEa1aJa/8e7b583a2aa9503e79230ddfaf062316.jpg", d.time, "🍎", () => { scoreMult = 1; });
+            // --- FIN : SCRIPT CUSTOM SERVER LUCK ---
+
+            // --- DEBUT : SCRIPT CUSTOM SPAWN ---
+            if (msg.name === 'customSpawn' && currentGameMode === "adventure") {
+                const appleType = d.type.toLowerCase();
+                spawnAppleAdmin(appleType, d.count);
+
+                if (appleType === 'lava') {
+                    showAdvancedMsg("<span style='color: #ff3838; font-weight: 900;'>FelixRouge</span> spawned a Lava Apple in your server!", 'bottom', {color: '#FF4D00'});
+                } 
+                else if (appleType === 'galaxy') {
+                    showAdvancedMsg("<span style='color: #ff3838; font-weight: 900;'>FelixRouge</span> spawned a Galaxy Apple in your server!", 'bottom', {isGalaxy: true});
+                } 
+                else if (appleType === 'dark') {
+                    showAdvancedMsg("<span style='color: #ff3838; font-weight: 900;'>FelixRouge</span> spawned a Dark Apple in your server!", 'bottom', {color: 'black'});
+                }
             }
-            if (msg.name === 'addtime') {
-                timeLeft += d.seconds;
-                showAdvancedMsg(`FelixRouge added ${d.seconds}s to your <span class="txt-violet">timer</span>!`, 'bottom', getTStyle(d.seconds));
+            // --- FIN : SCRIPT CUSTOM SPAWN ---
+
+            if (msg.name === 'greentime') { 
+                let oldL = currentLuck; currentLuck = 1.0; 
+                showAdvancedMsg(`FelixRouge activated <span class="txt-violet">Green time</span>!`, 'bottom', getGTStyle(d.time)); 
+                startHudTimer('gt', "https://static.vecteezy.com/system/resources/previews/016/733/263/non_2x/cute-illustration-of-a-green-apple-in-cartoon-style-on-isolated-background-vector.jpg", d.time, "🍏", () => { currentLuck = oldL; }); 
             }
-            if (msg.name === 'spawn') {
-                spawnApple(true, d.count);
-                showAdvancedMsg(`FelixRouge spawned ${d.count} Green Apples!`, 'bottom', getSStyle(d.count));
+            if (msg.name === 'doublepoints') { scoreMult = 2; showAdvancedMsg(`FelixRouge activated <span class="txt-violet">Double Points</span>!`, 'bottom', {isRainbow: true}); startHudTimer('dp', "https://fridg-front.s3.amazonaws.com/media/CACHE/images/products/lot-de-2-pommes-fuji_fEa1aJa/8e7b583a2aa9503e79230ddfaf062316.jpg", d.time, "🍎", () => { scoreMult = 1; }); }
+            if (msg.name === 'addtime' && currentGameMode === "arcade") { timeLeft += d.seconds; showAdvancedMsg(`FelixRouge added ${d.seconds}s to your <span class="txt-violet">timer</span>!`, 'bottom', getTStyle(d.seconds)); }
+            
+            if (msg.name === 'spawn') { 
+                spawnAppleAdmin('green', d.count); 
+                showAdvancedMsg(`FelixRouge spawned ${d.count} Green Apples!`, 'bottom', getSStyle(d.count)); 
             }
-            if (msg.name === 'ballSpeed') {
-                ball.baseSpeed = 4 * d.mult; ball.speed = ball.baseSpeed;
-                showAdvancedMsg(`FelixRouge set ball speed to x${d.mult}`, 'bottom', d.mult >= 2 ? {color:'black'} : {color:'white'});
+            if (msg.name === 'spawnGolden' && currentGameMode === "adventure") { 
+                spawnAppleAdmin('golden', d.count); 
+                let gColor = '#ffff00'; if(d.count === 3) gColor = '#A020F0'; if(d.count === 5) gColor = '#000000';
+                showAdvancedMsg(`FelixRouge spawned ${d.count} Golden Apples!`, 'bottom', {color: gColor}); 
             }
-            if (msg.name === 'appleSpeed') {
-                greenAppleBoost = d.mult;
-                showAdvancedMsg(`FelixRouge set apple boost to x${d.mult}`, 'bottom', d.mult >= 5 ? {isRainbow: true} : {color:'#32CD32'});
+            if (msg.name === 'spawnDiamond' && currentGameMode === "adventure") { 
+                spawnAppleAdmin('diamond', d.count); 
+                let dColor = '#ffff00'; if(d.count === 2) dColor = '#A020F0'; if(d.count === 3) dColor = '#000000';
+                showAdvancedMsg(`FelixRouge spawned ${d.count} Diamond Apples!`, 'bottom', {color: dColor}); 
             }
+            if (msg.name === 'spawnCandy' && currentGameMode === "adventure") { 
+                spawnAppleAdmin('candy', d.count); 
+                showAdvancedMsg(`FelixRouge spawned ${d.count} Candy Apple!`, 'bottom', {isRainbow: true}); 
+            }
+            
+            if (msg.name === 'ballSpeed') { ball.baseSpeed = 4 * d.mult; ball.speed = ball.baseSpeed; showAdvancedMsg(`FelixRouge set ball speed to x${d.mult}`, 'bottom', d.mult >= 2 ? {color:'black'} : {color:'white'}); }
+            if (msg.name === 'appleSpeed') { if(currentGameMode !== "adventure") greenAppleBoost = d.mult; showAdvancedMsg(`FelixRouge set apple boost to x${d.mult}`, 'bottom', d.mult >= 5 ? {isRainbow: true} : {color:'#32CD32'}); }
             if (msg.name === 'announce') showAdvancedMsg(d.text, 'top', {color: 'white'});
-            if (msg.name === 'clearLuck') {
-                currentLuck = 0.05; scoreMult = 1;
-                Object.keys(activeTimers).forEach(id => { clearInterval(activeTimers[id].interval); let c = document.getElementById('event-'+id); if(c) c.remove(); delete activeTimers[id]; });
+            if (msg.name === 'clearLuck') { 
+                luckMultiplier = 1; currentLuck = (currentGameMode === "adventure") ? 0.20 : 0.05; scoreMult = 1; 
+                Object.keys(activeTimers).forEach(id => { clearInterval(activeTimers[id].interval); let c = document.getElementById('event-'+id); if(c) c.remove(); delete activeTimers[id]; }); 
             }
-            if (msg.name === 'reset') location.reload();
+            
+            if (msg.name === 'reset') {
+                ball.speed = ball.baseSpeed * 3;
+                showAdvancedMsg("Ball Speed set to x3 due to imminent server reseting", 'bottom', {isRainbow: true});
+                let rTime = 5;
+                const containerTop = document.getElementById('msg-container-top');
+                const resetDiv = document.createElement('div'); 
+                resetDiv.className = 'admin-msg'; 
+                resetDiv.style.color = '#ff4757';
+                resetDiv.innerHTML = `⚠️SERVERS RESET IN ${rTime}s`;
+                containerTop.appendChild(resetDiv);
+
+                let rInterval = setInterval(() => {
+                    rTime--;
+                    if(rTime <= 0) { 
+                        clearInterval(rInterval); 
+                        resetDiv.remove();
+                        location.reload(); 
+                    } else { 
+                        resetDiv.innerHTML = `⚠️SERVERS RESET IN ${rTime}s`; 
+                    }
+                }, 1000);
+            }
         });
 
         function getLuckStyle(m) { if(m==2) return {color:'#32CD32'}; if(m==4) return {color:'#DAA520'}; if(m==6) return {color:'#DA70D6'}; if(m==8) return {isRainbow:true}; if(m==10) return {color:'black'}; return {color:'white'}; }
@@ -367,13 +542,13 @@
             const container = document.getElementById(pos === 'top' ? 'msg-container-top' : 'msg-container-bottom');
             const div = document.createElement('div'); div.className = 'admin-msg';
             if(style.isRainbow) div.innerHTML = `<span class="rainbow-text">${html}</span>`;
-            else { div.style.color = style.color; div.innerHTML = html; if(style.color === 'black') div.style.textShadow = "0px 0px 8px rgba(255,255,255,0.7)"; }
+            else if(style.isGalaxy) div.innerHTML = `<span class="galaxy-text">${html}</span>`;
+            else { div.style.color = style.color; div.innerHTML = html; if(style.color === 'black' || style.color === '#000000') div.style.textShadow = "0px 0px 8px rgba(255,255,255,0.7)"; }
             container.appendChild(div); setTimeout(() => div.remove(), 5000);
         }
 
         function startHudTimer(id, url, dur, fallbackEmoji, onE) {
-            let container = document.getElementById('hud-events');
-            if (activeTimers[id]) { activeTimers[id].remaining += dur; return; }
+            let container = document.getElementById('hud-events'); if (activeTimers[id]) { activeTimers[id].remaining += dur; return; }
             let card = document.createElement('div'); card.className = 'event-card'; card.id = 'event-' + id;
             card.innerHTML = `<div class="img-container"><span>${fallbackEmoji}</span><img src="${url}" onerror="this.style.display='none'"></div><div class="event-timer" id="timer-${id}">${dur}s</div>`;
             container.appendChild(card);
@@ -384,36 +559,136 @@
             }, 1000)};
         }
 
+        function spawnAppleAdmin(type, count) {
+            if(!gameActive) return;
+            let size = (type === 'green') ? 25 : 32; if(type === 'red') size = 55;
+            for(let i=0; i<count; i++) {
+                apples.push({ x: Math.random() * (canvas.width - 60), y: Math.random() * (canvas.height - 60), size: size, type: type });
+            }
+        }
+
         function spawnApple(fG, c) {
             if(!gameActive) return;
             for(let i=0; i<c; i++) {
-                let isOp = fG || Math.random() < currentLuck;
-                apples.push({ x: Math.random() * (canvas.width - 30), y: Math.random() * (canvas.height - 30), size: isOp ? 22 : 34, emoji: isOp ? "🍏" : "🍎", isOp: isOp });
+                if (currentGameMode === "arcade") {
+                    let isOp = fG || Math.random() < currentLuck;
+                    apples.push({ x: Math.random() * (canvas.width - 60), y: Math.random() * (canvas.height - 60), size: isOp ? 25 : 55, type: isOp ? 'green' : 'red' });
+                } 
+                else if (currentGameMode === "adventure") {
+                    let rng = Math.random();
+                    
+                    let darkChance = 0.001 * luckMultiplier;
+                    let galaxyChance = 0.003 * luckMultiplier;
+                    let lavaChance = 0.005 * luckMultiplier;
+                    let candyChance = 0.01 * luckMultiplier;
+                    let diamondChance = 0.05 * luckMultiplier;
+                    let goldenChance = 0.10 * luckMultiplier;
+
+                    if (!fG && rng < darkChance) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'dark' }); 
+                        showAdvancedMsg("A Dark Apple spawned in your server!", 'bottom', {color: 'black'});
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'galaxy' }); 
+                        showAdvancedMsg("A Galaxy Apple spawned in your server!", 'bottom', {isGalaxy: true});
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance + lavaChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'lava' }); 
+                        showAdvancedMsg("A Lava Apple spawned in your server!", 'bottom', {color: '#FF4D00'});
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance + lavaChance + candyChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'candy' }); 
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance + lavaChance + candyChance + diamondChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'diamond' }); 
+                    } 
+                    else if (!fG && rng < (darkChance + galaxyChance + lavaChance + candyChance + diamondChance + goldenChance)) { 
+                        apples.push({ x: Math.random() * (canvas.width - 35), y: Math.random() * (canvas.height - 35), size: 32, type: 'golden' }); 
+                    } 
+                    else {
+                        let isOp = fG || Math.random() < currentLuck;
+                        apples.push({ x: Math.random() * (canvas.width - 60), y: Math.random() * (canvas.height - 60), size: isOp ? 25 : 55, type: isOp ? 'green' : 'red' });
+                    }
+                }
             }
         }
 
         function update() {
-            if(!gameActive) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if(!gameActive) return; ctx.clearRect(0, 0, canvas.width, canvas.height);
             let dx = player.x - ball.x, dy = player.y - ball.y, dist = Math.sqrt(dx*dx+dy*dy);
             if(dist > 35) { ball.x += (dx/dist)*ball.speed; ball.y += (dy/dist)*ball.speed; }
-            ctx.font = "40px Nunito"; ctx.textAlign = "center"; 
-            ctx.fillText("🕹", player.x, player.y); ctx.fillText(ball.emoji, ball.x, ball.y);
+            
+            if (ball.speed > 5) {
+                ball.speed = 5;
+            } else if (ball.speed < 1) {
+                ball.speed = 1;
+            }
+
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = "transparent";
+            ctx.fillStyle = "#ffffff";
+            
+            ctx.font = "bold 40px Nunito"; ctx.textAlign = "center"; 
+            ctx.fillText("🕹️", player.x, player.y); ctx.fillText(ball.emoji, ball.x, ball.y);
+            
             apples = apples.filter(a => {
-                if(Math.sqrt((ball.x-a.x)**2 + (ball.y-a.y)**2) < a.size) {
-                    score += (a.isOp ? 3 : 1) * scoreMult; document.getElementById("score").innerText = "Score: " + score;
-                    if(a.isOp) { ball.speed = ball.baseSpeed * greenAppleBoost; setTimeout(() => ball.speed = ball.baseSpeed, 3000); }
+                let hitBox = a.size;
+                if(Math.sqrt((ball.x-a.x)**2 + (ball.y-a.y)**2) < hitBox) {
+                    let speedBoostFactor = 1; let boostDuration = 3000; 
+                    
+                    if (currentGameMode === "arcade") {
+                        score += (a.type === 'green' ? 3 : 1) * scoreMult; document.getElementById("score").innerText = "Score: " + score;
+                    } 
+                    else if(currentGameMode === "adventure") {
+                        let activeData = accounts[currentAccountName];
+                        if(activeData) {
+                            if(a.type === 'red') activeData.redApples += 1;
+                            else if(a.type === 'green') activeData.greenApples += 1;
+                            else if(a.type === 'golden') activeData.goldenApples += 1;
+                            else if(a.type === 'diamond') activeData.diamondApples += 1;
+                            else if(a.type === 'candy') activeData.candyApples += 1;
+                            else if(a.type === 'lava') activeData.lavaApples = (activeData.lavaApples || 0) + 1;
+                            else if(a.type === 'galaxy') activeData.galaxyApples = (activeData.galaxyApples || 0) + 1;
+                            else if(a.type === 'dark') activeData.darkApples = (activeData.darkApples || 0) + 1;
+                            saveAllAccounts();
+                        }
+                    }
+
+                    if (a.type === 'green') speedBoostFactor = greenAppleBoost;
+                    else if (a.type === 'golden') speedBoostFactor = 2;
+                    else if (a.type === 'diamond') speedBoostFactor = 3;
+                    else if (a.type === 'candy') { speedBoostFactor = 3; boostDuration = 5000; } 
+                    else if (a.type === 'lava') { speedBoostFactor = 3; boostDuration = 15000; } 
+                    else if (a.type === 'galaxy') { speedBoostFactor = 3; boostDuration = 30000; } 
+                    else if (a.type === 'dark') { speedBoostFactor = 3; boostDuration = 60000; } 
+
+                    if (speedBoostFactor > 1) {
+                        ball.speed = Math.min(5, ball.speed * speedBoostFactor); 
+                        setTimeout(() => { 
+                            ball.speed = ball.baseSpeed; 
+                        }, boostDuration);
+                    }
                     return false;
                 }
-                ctx.font = a.size + "px Nunito"; ctx.fillText(a.emoji, a.x, a.y); return true;
+                
+                let imgObj = IMG_FRUITS[a.type];
+                if (imgObj && imgObj.complete) { 
+                    ctx.drawImage(imgObj, a.x - a.size/2, a.y - a.size/2, a.size, a.size); 
+                } else { 
+                    ctx.font = "24px Nunito"; ctx.fillText("✨", a.x, a.y); 
+                }
+                return true;
             });
             requestAnimationFrame(update);
         }
 
         function countdown() {
-            if(!gameActive) return;
+            if(!gameActive || currentGameMode !== "arcade") return;
             if (timeLeft > 0) { timeLeft--; document.getElementById("timer-display").innerText = "Timer: " + timeLeft; setTimeout(countdown, 1000); }
-            else { gameActive = false; setTimeout(() => { if(confirm("Game Over! Restart?")) location.reload(); }, 100); }
+            else { 
+                gameActive = false; if (gameSpawnInterval) { clearInterval(gameSpawnInterval); gameSpawnInterval = null; }
+                setTimeout(() => { if(confirm("Game Over! Restart?")) { startGame(); } else { leaveGame(); } }, 100); 
+            }
         }
 
         window.addEventListener("mousemove", (e) => { player.x = e.clientX; player.y = e.clientY; });
